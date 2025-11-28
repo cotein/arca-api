@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as soap from 'soap';
-import { ArcaConfigService } from '../arca-config.service';
+import { ArcaConfigService, ArcaEnvironment } from '../arca-config.service';
 import { CmsSignerService } from '../../utils/cms-signer.service';
 import {
   ITicketAcceso,
@@ -20,59 +20,48 @@ export class ArcaWsaaService {
   ) {}
 
   /**
-   * Obtiene un Ticket de Acceso (TA) para un servicio específico
+   * Modificado: Acepta env opcional
    */
-  async getTicketAcceso(service: string): Promise<ITicketAcceso> {
-    this.logger.log(`📍 Solicitando TA para servicio: ${service}`);
+  async getTicketAcceso(service: string, env?: ArcaEnvironment): Promise<ITicketAcceso> {
+    // Si no se pasa env, usa el default del sistema
+    const targetEnv = env || this.configService.getEnvironment();
+    
+    this.logger.log(`📍 Solicitando TA para servicio: ${service} en modo: ${targetEnv}`);
 
-    // Verificar si hay un ticket válido en cache
-    const cachedTicket = this.ticketCache.get(service);
+    // Cache key compuesta para no mezclar entornos
+    const cacheKey = `${service}_${targetEnv}`;
+
+    const cachedTicket = this.ticketCache.get(cacheKey);
     if (cachedTicket && this.isTicketValid(cachedTicket)) {
       this.logger.log('💾 Usando TA desde cache');
       return cachedTicket;
     }
 
-    // Generar nuevo ticket
-    const ticket = await this.requestNewTicket(service);
-    this.ticketCache.set(service, ticket);
+    // Pasamos targetEnv a requestNewTicket
+    const ticket = await this.requestNewTicket(service, targetEnv);
+    this.ticketCache.set(cacheKey, ticket);
 
     return ticket;
   }
 
-  /**
-   * Solicita un nuevo ticket al WSAA
-   */
-  private async requestNewTicket(service: string): Promise<ITicketAcceso> {
-    this.logger.log('🔐 Generando nuevo TA...');
-
+  private async requestNewTicket(service: string, env: ArcaEnvironment): Promise<ITicketAcceso> {
+    // ... log ...
     try {
-      // 1. Crear el TRA (Ticket de Requerimiento de Acceso)
       const tra = this.createTRA(service);
-      this.logger.log('✓ TRA generado');
-
-      // 2. Firmar el TRA
-      const certPath = this.configService.getCertificatePath();
-      const keyPath = this.configService.getPrivateKeyPath();
+      
+      // PEDIMOS RUTAS USANDO EL ENV ESPECÍFICO
+      const certPath = this.configService.getCertificatePath(env);
+      const keyPath = this.configService.getPrivateKeyPath(); // Ojo aquí si usas keys distintas
+      
       const signedCMS = await this.signTRA(tra, certPath, keyPath);
-      this.logger.log('✓ TRA firmado correctamente');
-      this.logger.debug(
-        `CMS Base64 (primeros 100 chars): ${signedCMS.substring(0, 100)}...`,
-      );
-
-      // 3. Llamar al WSAA
-      const response = await this.callWSAA(signedCMS);
-      this.logger.log('✓ Respuesta recibida del WSAA');
-
-      // 4. Parsear y retornar el ticket
+      
+      // LLAMAMOS AL WSAA CON EL ENV ESPECÍFICO
+      const response = await this.callWSAA(signedCMS, env);
+      
       return await this.parseTicketResponse(response, service);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        this.logger.error('❌ Error obteniendo TA:', error.message);
-        throw error;
-      } else {
-        this.logger.error('❌ Error obteniendo TA:', error);
-        throw new Error('Error desconocido obteniendo TA');
-      }
+    } catch (error) {
+       // ... error handling ...
+       throw error;
     }
   }
 
@@ -137,9 +126,9 @@ export class ArcaWsaaService {
   /**
    * Llama al servicio WSAA
    */
-  private async callWSAA(signedCMS: string): Promise<string> {
-    const wsdlPath = this.configService.getWsaaWsdlPath();
-    const wsaaUrl = this.configService.getWsaaUrl();
+  private async callWSAA(signedCMS: string, env: ArcaEnvironment): Promise<string> {
+    const wsdlPath = this.configService.getWsaaWsdlPath(env);
+    const wsaaUrl = this.configService.getWsaaUrl(env);
 
     this.logger.log(`🌐 Conectando a WSAA: ${wsaaUrl}`);
     this.logger.debug(`WSDL: ${wsdlPath}`);

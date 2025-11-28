@@ -18,6 +18,10 @@ import * as Joi from 'joi';
         ARCA_WSFE_URL_TESTING: Joi.string().required(),
         ARCA_WSFE_PRODUCTION_PATH: Joi.string().required(),
         ARCA_WSFE_TESTING_PATH: Joi.string().required(),
+        ARCA_WSFECRED_URL_PRODUCTION: Joi.string().required(),
+        ARCA_WSFECRED_URL_TESTING: Joi.string().required(),
+        ARCA_WSFECRED_PRODUCTION_PATH: Joi.string().required(),
+        ARCA_WSFECRED_TESTING_PATH: Joi.string().required(),
         ARCA_PRODUCTION_PATH: Joi.string().required(),
         ARCA_TESTING_PATH: Joi.string().required(),
         ARCA_PRIVATE_KEY_PATH: Joi.string().required(),
@@ -26,7 +30,7 @@ import * as Joi from 'joi';
         ARCA_CUIT_EMISOR: Joi.string().required(), 
       }),
     }),
-    ArcaModule
+    ArcaModule,
   ],
 })
 export class AppModule {}

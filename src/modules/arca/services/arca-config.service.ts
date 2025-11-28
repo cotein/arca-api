@@ -48,38 +48,23 @@ export class ArcaConfigService {
   /**
    * Obtiene la URL del WSAA según el entorno
    */
-  getWsaaUrl(): string {
-    // Determina qué clave de entorno usar primero
-    const envKey =
-      this.currentEnvironment === 'production'
-        ? 'ARCA_WSAA_PROD_URL'
-        : 'ARCA_WSAA_URL';
-
-    // Llama a configService una sola vez, asegurando que el valor existe
+  getWsaaUrl(envOverride?: ArcaEnvironment): string {
+    const env = envOverride || this.currentEnvironment;
+    const envKey = env === 'production' ? 'ARCA_WSAA_PROD_URL' : 'ARCA_WSAA_URL';
+    
     const url = this.configService.get(envKey, { infer: true });
-
-    // Si por alguna razón crítica la URL no se encuentra, es mejor que falle con un error claro
-    if (!url) {
-      throw new Error(`La variable de entorno '${envKey}' no está definida.`);
-    }
-
+    if (!url) throw new Error(`La variable '${envKey}' no está definida.`);
     return url;
   }
 
   /**
-   * Obtiene la ruta del WSDL del WSAA
+   * Obtiene la ruta del WSDL del WSAA permitiendo override
    */
-  getWsaaWsdlPath(): string {
-    // 1. Determina la clave de configuración que necesitas
-    const wsdlKey =
-      this.currentEnvironment === 'production'
-        ? 'ARCA_WSAA_PRODUCTION_PATH'
-        : 'ARCA_WSAA_TESTING_PATH';
-
-    // 2. Obtén el valor de forma segura, garantizando que es un string
+  getWsaaWsdlPath(envOverride?: ArcaEnvironment): string {
+    const env = envOverride || this.currentEnvironment;
+    const wsdlKey = env === 'production' ? 'ARCA_WSAA_PRODUCTION_PATH' : 'ARCA_WSAA_TESTING_PATH';
+    
     const wsdlPath = this.configService.get(wsdlKey, { infer: true });
-
-    // 3. Ahora wsdlPath es un 'string' y path.resolve() no dará error
     return path.resolve(process.cwd(), wsdlPath);
   }
 
@@ -117,19 +102,46 @@ export class ArcaConfigService {
   }
 
   /**
-   * Obtiene la ruta del certificado según el entorno
+   * Obtiene la URL del WSFECRED según el entorno
    */
-  getCertificatePath(): string {
-    // 1. Determina la clave de configuración a utilizar
-    const certKey =
+  getWsfecredUrl(): string {
+    // 1. Determina la clave de configuración a usar
+    const urlKey =
       this.currentEnvironment === 'production'
-        ? 'ARCA_PRODUCTION_PATH'
-        : 'ARCA_TESTING_PATH';
+        ? 'ARCA_WSFECRED_URL_PRODUCTION'
+        : 'ARCA_WSFECRED_URL_TESTING';
+
+    // 2. Obtén el valor de forma segura, asegurando que es un string
+    const url = this.configService.get(urlKey, { infer: true });
+
+    return url;
+  }
+
+  /**
+   * Obtiene la ruta del WSDL del WSFECRED
+   */
+  getWsfecredWsdlPath(): string {
+    // 1. Determina la clave de configuración que necesitas
+    const wsdlKey =
+      this.currentEnvironment === 'production'
+        ? 'ARCA_WSFECRED_PRODUCTION_PATH'
+        : 'ARCA_WSFECRED_TESTING_PATH';
 
     // 2. Obtén el valor de forma segura, garantizando que es un string
-    const certPath = this.configService.get(certKey, { infer: true });
+    const wsdlPath = this.configService.get(wsdlKey, { infer: true });
 
-    // 3. Ahora que 'certPath' es un string, pásalo a path.resolve()
+    // 3. Ahora wsdlPath es un 'string' y path.resolve() funciona correctamente
+    return path.resolve(process.cwd(), wsdlPath);
+  }
+
+  /**
+   * Obtiene la ruta del certificado permitiendo override
+   */
+  getCertificatePath(envOverride?: ArcaEnvironment): string {
+    const env = envOverride || this.currentEnvironment;
+    const certKey = env === 'production' ? 'ARCA_PRODUCTION_PATH' : 'ARCA_TESTING_PATH';
+    
+    const certPath = this.configService.get(certKey, { infer: true });
     return path.resolve(process.cwd(), certPath);
   }
 
@@ -165,6 +177,7 @@ export class ArcaConfigService {
       { path: this.getPrivateKeyPath(), name: 'Clave privada' },
       { path: this.getWsaaWsdlPath(), name: 'WSDL WSAA' },
       { path: this.getWsfeWsdlPath(), name: 'WSDL WSFE' },
+      { path: this.getWsfecredWsdlPath(), name: 'WSDL WSFECRED' },
     ];
 
     for (const file of filesToCheck) {
